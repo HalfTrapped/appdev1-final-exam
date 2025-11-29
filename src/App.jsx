@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 import './css/main.css';
 import './css/corner.css';
@@ -7,6 +8,57 @@ import './App.css';
 function App() {
   // Theme state
   const [theme, setTheme] = useState("standard");
+  // Todos state
+  const [todos, setTodos] = useState([]);
+  const [input, setInput] = useState("");
+
+  // Fetch todos from JSONPlaceholder on mount
+  useEffect(() => {
+    axios.get("https://jsonplaceholder.typicode.com/todos?_limit=3")
+      .then(res => setTodos(res.data))
+      .catch(err => console.error(err));
+  }, []);
+
+  // Add todo
+  const addTodo = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    try {
+      const res = await axios.post("https://jsonplaceholder.typicode.com/todos", {
+        title: input,
+        completed: false,
+      });
+      setTodos([res.data, ...todos]);
+      setInput("");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Toggle completion
+  const toggleTodo = async (id) => {
+    const todo = todos.find(t => t.id === id);
+    try {
+      const res = await axios.put(`https://jsonplaceholder.typicode.com/todos/${id}`, {
+        ...todo,
+        completed: !todo.completed,
+      });
+      setTodos(todos.map(t => t.id === id ? res.data : t));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Delete todo
+  const deleteTodo = async (id) => {
+    try {
+      await axios.delete(`https://jsonplaceholder.typicode.com/todos/${id}`);
+      setTodos(todos.filter(t => t.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <div className={theme} style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -27,10 +79,33 @@ function App() {
 
       {/* Form Section */}
       <div id="form">
-        <form>
-          <input className="todo-input" type="text" placeholder="Add a task." />
+        <form onSubmit={addTodo}>
+          <input
+            className="todo-input"
+            type="text"
+            placeholder="Add a task."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+          />
           <button className="todo-btn" type="submit">I Got This!</button>
         </form>
+      </div>
+
+      {/* Todo List */}
+      <div id="myUnOrdList">
+        <ul className="todo-list">
+          {todos.map(todo => (
+            <li key={todo.id} className={`todo ${theme}-todo`}>
+              <span
+                style={{ textDecoration: todo.completed ? "line-through" : "none" }}
+              >
+                {todo.title}
+              </span>
+              <button className="check-btn" onClick={() => toggleTodo(todo.id)}>✔</button>
+              <button className="delete-btn" onClick={() => deleteTodo(todo.id)}>🗑</button>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {/* Top-left corner section */}
@@ -71,12 +146,6 @@ function App() {
           <p>
             <span id="datetime" />
           </p>
-        </div>
-
-        <div id="myUnOrdList">
-          <ul className="todo-list">
-            {/* Todo items will be added dynamically */}
-          </ul>
         </div>
       </div>
 
